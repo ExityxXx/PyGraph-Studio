@@ -17,7 +17,7 @@ class MainWindow(Tk):
 
         # Инициализация вкладок меню
         self.setup_menu()
-    
+
     def init_elements(self):
         # Создание структуры проекта
         self.struct : Struct = Struct()
@@ -30,13 +30,14 @@ class MainWindow(Tk):
 
         # Создание набора вкладок
         self.notebook = ttk.Notebook(self)
-    
+
     def setup_menu(self):
         """
         Настройка меню
         Верхняя панель.
         """
 
+        # Создание всех меню
         self.main_menu = Menu(tearoff=0)            # Основное меню
         self.file_tab = Menu(tearoff=0)             # Вкладка "Файл"
         self.editing_tab = Menu(tearoff=0)          # Вкладка "Правка"
@@ -153,20 +154,24 @@ class MainWindow(Tk):
         canvas.pack(expand=1, fill=BOTH)
         self.notebook.add(frame, text=gfield_name)
         self.notebook.pack(expand=1, fill=BOTH)
-        
-        # Консольная отладка        
-        print(f"Создано графическое поле: {gfield_name}")
-        print(f"Описание: {gfield_description}")
-        print(f"Всего полей: {self.gfields_counter}")
 
         # Биндинг контекстного меню
         canvas.bind("<Button-3>", lambda e: self.context_menu(new_gfield, e))
         canvas.bind("<Configure>", lambda e: self.grid_line(e))
 
-    
     def delete_current_gfield(self):
-        showinfo("Уведомление", "На данный момент разработки нельзя удалить ничего")
-    
+        if self.struct.gfields_count() <= 0:
+            return
+        
+        current_selected_index = self.notebook.index(self.notebook.select())
+        self.notebook.forget(current_selected_index)
+        self.struct.remove_gfield(current_selected_index)
+        self.gfields_counter -= 1
+        
+        if self.struct.gfields_count() == 0:
+            self.notebook.pack_forget()
+            self.config(bg="#2b2b2b")
+        
     def developer_debug(self):
         """
         Меню отладки
@@ -175,7 +180,7 @@ class MainWindow(Tk):
         gfields_count = self.struct.gfields_count()
         gfields : dict = self.struct.get_dict()
         generated_result = "Отсутствуют графические поля для отладки"
-        current_gfield = None 
+        current_gfield = None
         if gfields:
             current_gfield = self.struct.get_gfield(self.notebook.index(self.notebook.select())).get_name()
             generated_result = f"Общее количество: {gfields_count}\nТекущее графическое поле: \"{current_gfield }\"\n"
@@ -186,10 +191,11 @@ class MainWindow(Tk):
                 f"    Название: {gfields[i].get_name()}\n" \
                 f"    Описание: {gfields[i].get_description()}\n" \
                 f"    Узлы:   "
-            for j in range(len(gfields[i].get_nodes())):
+            for i in gfields[i].get_nodes().values():
                 generated_result += \
-                    f"{gfields[i].get_nodes()[j]}\n            "
+                    f"{i}\n            "
             generated_result+="\n"
+
         # Настройка окна
         window = Toplevel()
         window.title("Отладка")
@@ -268,9 +274,9 @@ class MainWindow(Tk):
         Сохранение ноды в текущем графическом поле и отрисовка ее на холсте
         """
         current_gfield = self.struct.get_gfield(self.notebook.index(self.notebook.select()))
-        current_gfield.get_nodes().append(Node(name, code))
         canvas : Canvas = current_gfield.get_canvas()
-        
+        this_node_uid = current_gfield.add_node(name, code) - 1
+
         node_rect_id = canvas.create_rectangle(
             event.x,
             event.y,
@@ -328,12 +334,13 @@ class MainWindow(Tk):
             font=("Arial", 10, "bold"),
             tags="node"
         )
-        canvas.tag_bind(set_node_button, "<Button-1>", lambda e: self.edit_node_menu(event, node_header_id, node_code_id))
-        canvas.tag_bind(set_node_text, "<Button-1>", lambda e: self.edit_node_menu(event, node_header_id, node_code_id))
-        canvas.tag_bind(run_code_button, "<Button-1>", lambda e: self.run_code(event, node_header_id, node_code_id))
-        canvas.tag_bind(run_code_text, "<Button-1>", lambda e: self.run_code(event, node_header_id, node_code_id))
+        
+        canvas.tag_bind(set_node_button, "<Button-1>", lambda e: self.edit_node_menu(e, node_header_id, node_code_id, this_node_uid))
+        canvas.tag_bind(set_node_text, "<Button-1>", lambda e: self.edit_node_menu(e, node_header_id, node_code_id, this_node_uid))
+        canvas.tag_bind(run_code_button, "<Button-1>", lambda e: self.run_code(e, node_header_id, node_code_id))
+        canvas.tag_bind(run_code_text, "<Button-1>", lambda e: self.run_code(e, node_header_id, node_code_id))
 
-    def edit_node_menu(self, event, name_id, code_id):
+    def edit_node_menu(self, event, name_id, code_id, node_id):
         window = Toplevel(self)
         window.geometry(f"350x305+{event.x_root - 100}+{event.y_root + 100}")
         window.title(f"Редактирование узла")
@@ -367,7 +374,8 @@ class MainWindow(Tk):
             else:
                 current_canvas.itemconfig(name_id, text=name)
                 current_canvas.itemconfig(code_id, text=code)
-                
+                current_gfield.get_nodes()[node_id].header = name
+                current_gfield.get_nodes()[node_id].code = code
                 window.destroy()
         
         ok_button = ttk.Button(window, text="Отмена")
