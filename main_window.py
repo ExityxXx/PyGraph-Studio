@@ -17,11 +17,7 @@ class MainWindow(Tk):
 
         # Инициализация вкладок меню
         self.setup_menu()
-
-        # Создание левой панели
-        # self.left_panel = Frame(borderwidth=1, relief=SOLID, width=250, bg="#333333")
-        # self.left_panel.pack(side=LEFT, fill="y")
-
+    
     def init_elements(self):
         # Создание структуры проекта
         self.struct : Struct = Struct()
@@ -30,11 +26,11 @@ class MainWindow(Tk):
         # Настройка окна приложения
         self.title("PyGraph Studio")
         self.geometry("1080x720+480+100")
-        self.config(background="#4E4E4E")
+        self.config(background="#2b2b2b")
 
         # Создание набора вкладок
         self.notebook = ttk.Notebook(self)
-
+    
     def setup_menu(self):
         """
         Настройка меню
@@ -148,7 +144,7 @@ class MainWindow(Tk):
         # Создаем фрейм и канвас
         frame = Frame(self.notebook)
         canvas = Canvas(frame)
-        canvas.config(bg="#4E4E4E")
+        canvas.config(bg="#2b2b2b")
         
         # Добавляем в структуру проекта графическое поле
         new_gfield = Gfield(self.gfields_counter - 1, gfield_name, gfield_description, canvas, list())
@@ -165,6 +161,7 @@ class MainWindow(Tk):
 
         # Биндинг контекстного меню
         canvas.bind("<Button-3>", lambda e: self.context_menu(new_gfield, e))
+        canvas.bind("<Configure>", lambda e: self.grid_line(e))
 
     
     def delete_current_gfield(self):
@@ -277,10 +274,11 @@ class MainWindow(Tk):
         node_rect_id = canvas.create_rectangle(
             event.x,
             event.y,
-            event.x + 160,
+            event.x + 220,
             event.y + 120,
             fill="#363636",
-            outline="#FFD000"
+            outline="#FFD000",
+            tags="node"
         )
         node_header_id = canvas.create_text(
             event.x + 10,
@@ -288,7 +286,8 @@ class MainWindow(Tk):
             text=name,
             fill="#FFFFFF",
             anchor=NW,
-            font=("Arial", 11, "bold")
+            font=("Arial", 11, "bold"),
+            tags="node"
         )
         node_code_id = canvas.create_text(
             event.x + 10,
@@ -296,33 +295,38 @@ class MainWindow(Tk):
             text=code,
             fill="#08D63C",
             anchor=NW,
-            font=("Consolas", 10)
+            font=("Consolas", 10),
+            tags="node"
         )
         set_node_button = canvas.create_rectangle(
-            event.x + 125,
+            event.x + 185,
             event.y + 8,
-            event.x + 150,
+            event.x + 210,
             event.y + 33,
-            fill="#575656", outline="#FFD000"
+            fill="#575656", outline="#FFD000",
+            tags="node"
         )
         set_node_text = canvas.create_text(
-            event.x + 138,
+            event.x + 198,
             event.y + 21,
             text="⚙️", fill="#FFD000",
-            font=("Arial", 10, "bold")
+            font=("Arial", 10, "bold"),
+            tags="node"
         )
         run_code_button = canvas.create_rectangle(
-            event.x + 125,
+            event.x + 185,
             event.y + 38,
-            event.x + 150,
+            event.x + 210,
             event.y + 63,
-            fill="#575656", outline="#FFD000"
+            fill="#575656", outline="#FFD000",
+            tags="node"
         )
         run_code_text = canvas.create_text(
-            event.x + 138,
+            event.x + 198,
             event.y + 50,
             text="▶︎", fill="#FFD000",
-            font=("Arial", 10, "bold")
+            font=("Arial", 10, "bold"),
+            tags="node"
         )
         canvas.tag_bind(set_node_button, "<Button-1>", lambda e: self.edit_node_menu(event, node_header_id, node_code_id))
         canvas.tag_bind(set_node_text, "<Button-1>", lambda e: self.edit_node_menu(event, node_header_id, node_code_id))
@@ -339,9 +343,10 @@ class MainWindow(Tk):
         window.columnconfigure(0, weight=1)
         window.columnconfigure(1, weight=1)
 
-        current_canvas : Canvas = self.struct.get_gfield \
-            (self.notebook.index(self.notebook.select())).get_canvas()
-                
+        current_gfield : Gfield = self.struct.get_gfield \
+            (self.notebook.index(self.notebook.select()))
+        current_canvas : Canvas = current_gfield.get_canvas()
+        
         ttk.Label(window, text="Имя узла: ").grid(row=0, column=0, padx=6, pady=6, sticky=EW)
         node_name_entry = ttk.Entry(window, width=45)
         node_name_entry.grid(row=0, column=1, padx=6, pady=6, sticky=EW)
@@ -362,6 +367,7 @@ class MainWindow(Tk):
             else:
                 current_canvas.itemconfig(name_id, text=name)
                 current_canvas.itemconfig(code_id, text=code)
+                
                 window.destroy()
         
         ok_button = ttk.Button(window, text="Отмена")
@@ -408,4 +414,28 @@ class MainWindow(Tk):
         text.config(state=DISABLED)
         text.pack(expand=1, fill=BOTH)
         frame.pack(expand=1, fill=BOTH, padx=6, pady=6)
+    
+    def grid_line(self, e=None):
+        canvas : Canvas = self.struct.get_gfield \
+            (self.notebook.index(self.notebook.select())).get_canvas()
+        canvas.delete("grid_line")
+        w = canvas.winfo_width()
+        h = canvas.winfo_height()
+        step = 30
+
+        if w <= 10 or h <= 10:
+            return
         
+        for i in range(0, w, step):
+            canvas.create_line(i, 0, i, w, tags="grid_line", fill="#4a4a4a", width=1)
+
+        for i in range(0, h, step):
+            canvas.create_line(0, i, w, i, tags="grid_line", fill="#4a4a4a", width=1)
+        
+        for i in range(0, w, step * 5):
+            canvas.create_line(i, 0, i, w, tags="grid_line", fill="#666666", width=2)
+
+        for i in range(0, h, step * 5):
+            canvas.create_line(0, i, w, i, tags="grid_line", fill="#666666", width=2)
+         
+        canvas.tag_raise("node")
