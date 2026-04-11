@@ -30,7 +30,13 @@ class MainWindow(Tk):
 
         # Создание набора вкладок
         self.notebook = ttk.Notebook(self)
-
+    
+    def get_current_canvas(self):
+        if self.struct.gfields_count() == 0:
+            return
+        return self.struct.get_gfield \
+            (self.notebook.index(self.notebook.select())).get_canvas()
+        
     def setup_menu(self):
         """
         Настройка меню
@@ -160,6 +166,9 @@ class MainWindow(Tk):
         canvas.bind("<Configure>", lambda e: self.grid_line(e))
 
     def delete_current_gfield(self):
+        """
+        Удаление графического поля
+        """
         if self.struct.gfields_count() <= 0:
             return
         
@@ -339,6 +348,11 @@ class MainWindow(Tk):
         canvas.tag_bind(set_node_text, "<Button-1>", lambda e: self.edit_node_menu(e, node_header_id, node_code_id, this_node_uid))
         canvas.tag_bind(run_code_button, "<Button-1>", lambda e: self.run_code(e, node_header_id, node_code_id))
         canvas.tag_bind(run_code_text, "<Button-1>", lambda e: self.run_code(e, node_header_id, node_code_id))
+        
+        # Настройка подсветки узлов при их нажатий
+        canvas.tag_bind(node_rect_id, "<ButtonPress-1>", lambda e: self.node_drag_start(e, node_rect_id, set_node_button, run_code_button, set_node_text, run_code_text))
+        canvas.tag_bind(node_rect_id, "<B1-Motion>", lambda e: self.node_drag_motion(e, node_header_id, node_rect_id, set_node_button, run_code_button, set_node_text, run_code_text))
+        canvas.tag_bind(node_rect_id, "<ButtonRelease-1>", lambda e: self.node_drag_end(e, node_rect_id, set_node_button, run_code_button, set_node_text, run_code_text))
 
     def edit_node_menu(self, event, name_id, code_id, node_id):
         window = Toplevel(self)
@@ -391,8 +405,7 @@ class MainWindow(Tk):
         Запуск кода
         """
         # Получение текущего холста и ноды код которой мы будем запускать
-        current_canvas : Canvas = self.struct.get_gfield \
-            (self.notebook.index(self.notebook.select())).get_canvas()
+        current_canvas : Canvas = self.get_current_canvas()
         code = current_canvas.itemcget(code_id, "text")
 
         # Настройка окна
@@ -424,8 +437,7 @@ class MainWindow(Tk):
         frame.pack(expand=1, fill=BOTH, padx=6, pady=6)
     
     def grid_line(self, e=None):
-        canvas : Canvas = self.struct.get_gfield \
-            (self.notebook.index(self.notebook.select())).get_canvas()
+        canvas : Canvas = self.get_current_canvas()
         canvas.delete("grid_line")
         w = canvas.winfo_width()
         h = canvas.winfo_height()
@@ -447,3 +459,40 @@ class MainWindow(Tk):
             canvas.create_line(0, i, w, i, tags="grid_line", fill="#666666", width=2)
          
         canvas.tag_raise("node")
+    
+    def node_drag_start(self, event, *args):
+        """
+        Перемещение узла по полю (начало события)
+        Аргументы:
+        node_rect_id, set_node_button, run_code_button, set_node_text, run_code_text
+        
+        Аргументы соответственны args[i] т.е
+        node_rect_id = args[0] а run_code_text = args[4]
+        """
+        canvas : Canvas = self.get_current_canvas()
+        change_color = "#08D63C"
+        for item in [args[0], args[1], args[2]]:
+            canvas.itemconfig(item, outline=change_color)
+        for button in [args[3], args[4]]:
+            canvas.itemconfig(button, fill=change_color)
+        self.drag_info = {
+            "x": event.x,
+            "y": event.y
+        }
+
+    def node_drag_motion(self, event, *args):
+        canvas : Canvas = self.get_current_canvas()
+        dx = event.x - self.drag_info["x"]
+        dy = event.y - self.drag_info["y"]
+        for item in args:
+            canvas.move(item, dx, dy)
+        self.drag_info["x"] = event.x
+        self.drag_info["y"] = event.y
+        
+    def node_drag_end(self, event, *args):
+        canvas : Canvas = self.get_current_canvas()
+        change_color = "#FFD000"
+        for item in [args[0], args[1], args[2]]:
+            canvas.itemconfig(item, outline=change_color)
+        for button in [args[3], args[4]]:
+            canvas.itemconfig(button, fill=change_color)
