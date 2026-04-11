@@ -5,7 +5,9 @@ from tkinter.messagebox import showinfo
 from struct import Struct # структура
 from gfield import Gfield # поле
 from node import Node     # узел
+from tooltip import ToolTip
 from io import StringIO
+
 import sys
 
 class MainWindow(Tk):
@@ -17,6 +19,9 @@ class MainWindow(Tk):
 
         # Инициализация вкладок меню
         self.setup_menu()
+
+        # Инициализация тулбара
+        self.setup_toolbar()
 
     def init_elements(self):
         # Создание структуры проекта
@@ -81,7 +86,47 @@ class MainWindow(Tk):
         # Настройка вкладки "Справка"
         self.ref_tab.add_command(label="О программе")
         self.config(menu=self.main_menu)
+    
+    def setup_toolbar(self):
+        toolbar_frame = Frame(self, relief=SOLID, bg="#2b2b2b")
+        
+        add_gfield_button = Button(
+            toolbar_frame, text="➕",
+            width=4, height=1,
+            command=self.creating_new_gfield_menu
+        )
+        add_gfield_button.pack(side=LEFT)
+        ToolTip(add_gfield_button, "Добавить графическое поле")
+        
+        del_gfield_button = Button(
+            toolbar_frame, text="❌",
+            width=4, height=1,
+            command=self.delete_current_gfield
+        )
+        del_gfield_button.pack(side=LEFT)
+        ToolTip(del_gfield_button, "Удалить графическое поле")
 
+        graph_info_button = Button(
+            toolbar_frame, text="📊", 
+            width=4, height=1,
+            command=self.debug_current_gfield
+        )
+        graph_info_button.pack(side=LEFT)
+        ToolTip(graph_info_button, "Информация о графическом поле")
+
+        debug_button = Button(
+            toolbar_frame, text="🐞",
+            width=4, height=1,
+            command=self.developer_debug
+        )
+        debug_button.pack(side=LEFT)
+        ToolTip(debug_button, "Запустить отладку")
+
+        connect_button = Button(toolbar_frame, text="🔗", width=4, height=1)
+        connect_button.pack(side=LEFT)
+        ToolTip(connect_button, "Установить связь между узлами")
+        toolbar_frame.pack(fill=X, side=TOP)
+    
     def creating_new_gfield_menu(self):
         """
         Меню создания нового графического поля
@@ -221,6 +266,44 @@ class MainWindow(Tk):
         clear_button = ttk.Button(window, text="Очистить", command=lambda : text.delete("1.0", END))
         clear_button.pack(padx=8, pady=8)
     
+    def debug_current_gfield(self):
+        """
+        Меню отладки текущего поля
+        """
+
+        generated_result = "Отсутствуют графические поля для отладки"
+        title = "Отладка"
+        current_gfield = None
+
+        if self.struct.gfields_count() > 0:
+            current_gfield = self.struct.get_gfield(self.notebook.index(self.notebook.select()))
+            title = f"Отладка поля \"{current_gfield.get_name()}\""
+            generated_result = \
+                    f"Название: {current_gfield.get_name()}\n" \
+                    f"Описание: {current_gfield.get_description()}\n" \
+                    f"Узлы:   "
+            for i in current_gfield.get_nodes().values():
+                generated_result += \
+                    f"{i}\n         "
+            generated_result += "\n"
+            
+
+        # Настройка окна
+        window = Toplevel()
+        window.title(title)
+        window.geometry("690x250+650+250")
+        window.resizable(1, 0)
+        window.focus()
+
+        # Размещение центрального текста
+        text = Text(window, bg="#404040", fg="#00D10A", font=("Courier New", 12))
+        text.pack(padx=8, pady=8, fill=X)
+        text.insert("1.0", str(generated_result))
+
+        # Кнопка очистки
+        clear_button = ttk.Button(window, text="Очистить", command=lambda : text.delete("1.0", END))
+        clear_button.pack(padx=8, pady=8)
+        
     def context_menu(self, gfield, event):
         """
         Контекстное меню
