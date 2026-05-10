@@ -92,6 +92,7 @@ class MainWindow(Tk):
         self.file_tab = Menu(tearoff=0)             # Вкладка "Файл"
         self.editing_tab = Menu(tearoff=0)          # Вкладка "Правка"
         self.run_tab = Menu(tearoff=0)              # Вкладка "Выполнить"
+        self.compile_tab = Menu(tearoff=0)
         self.terminal_tab = Menu(tearoff=0)         # Вкладка "Терминал"
         self.ref_tab = Menu(tearoff=0)              # Вкладка "Справка"
 
@@ -99,6 +100,7 @@ class MainWindow(Tk):
         self.main_menu.add_cascade(label="Файл", menu=self.file_tab)
         self.main_menu.add_cascade(label="Правка", menu=self.editing_tab)
         self.main_menu.add_cascade(label="Выполнить", menu=self.run_tab)
+        self.main_menu.add_cascade(label="Компиляция", menu=self.compile_tab)
         self.main_menu.add_cascade(label="Терминал", menu=self.terminal_tab)
         self.main_menu.add_cascade(label="Справка", menu=self.ref_tab)
 
@@ -121,6 +123,11 @@ class MainWindow(Tk):
         self.run_tab.add_command(label="Запустить код")
         self.run_tab.add_command(label="Запустить окно отладки")
         self.run_tab.add_command(label="Запустить отладку кода")
+
+        # Настройка вкладки "Компиляция"
+        self.compile_tab.add_command(label="Скомпилировать графическое поле")
+        self.compile_tab.add_command(label="Скомпилировать проект")
+        self.compile_tab.add_command(label="Транслировать проект в Python код")
 
         # Настройка вкладки "Терминал"
         self.terminal_tab.add_command(label="Создать терминал")
@@ -163,6 +170,13 @@ class MainWindow(Tk):
         )
         debug_button.pack(side=LEFT)
         ToolTip(debug_button, "Запустить отладку")
+        vars_debug_button = Button(
+            toolbar_frame, text="🐞 var 🧾",
+            width=4, height=1,
+            command=self.debug_variables
+        )
+        vars_debug_button.pack(side=LEFT)
+        ToolTip(vars_debug_button, "Запустить отладку переменных")
 
         connect_button = Button(
             toolbar_frame, text="🔗", 
@@ -627,6 +641,38 @@ class MainWindow(Tk):
         clear_button = ttk.Button(window, text="Очистить", command=lambda : text.delete("1.0", END))
         clear_button.pack(padx=8, pady=8)
         
+    def debug_variables(self):
+        """
+        Меню отладки переменных
+        """
+
+        generated_result = "Отсутствуют переменные для отладки\nДобавить их можно в менеджере переменных"
+
+        if self.variables_counter > 0:
+            for id, variable in enumerate(self.struct.get_variables().values()):
+                generated_result += \
+                    f"Переменная №{id}:\n" \
+                    f"    Имя: {variable.get_name()}\n" \
+                    f"    Тип: {variable.get_type()}\n" \
+                    f"    Значение: {variable.get_value()}\n"
+                generated_result += "\n"
+
+        # Настройка окна
+        window = Toplevel()
+        window.title("Отладка переменных")
+        window.geometry("690x250+650+250")
+        window.resizable(1, 0)
+        window.focus()
+
+        # Размещение центрального текста
+        text = Text(window, bg="#404040", fg="#00D10A", font=("Courier New", 12))
+        text.pack(padx=8, pady=8, fill=X)
+        text.insert("1.0", str(generated_result))
+
+        # Кнопка очистки
+        clear_button = ttk.Button(window, text="Очистить", command=lambda : text.delete("1.0", END))
+        clear_button.pack(padx=8, pady=8)
+
     def context_menu(self, gfield, event):
         """
         Контекстное меню
