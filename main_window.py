@@ -1387,7 +1387,7 @@ class MainWindow(Tk):
             if selection:
                 item = table_view.item(selection, "values")
                 graph_name.set(str(item[1]))
-        
+                entry.config(state="enabled")
         def create_gfield_at_table():
             temp_window = self.creating_new_gfield_menu()
             self.wait_window(temp_window)
@@ -1414,6 +1414,7 @@ class MainWindow(Tk):
             self.notebook.forget(selected_item_id)
             self.struct.remove_item(selected_item_id)
             graph_name.set("")
+            entry.config(state="disabled")
             self.items_counter -= 1
             self.gfields_counter -= 1
 
@@ -1492,7 +1493,8 @@ class MainWindow(Tk):
               font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").pack(padx=4, pady=6, anchor="nw", side="left")
         
         graph_name = StringVar()
-        ttk.Entry(options_elements_frame, textvariable=graph_name).pack(padx=4, pady=6, anchor="nw", side="right")
+        entry = ttk.Entry(options_elements_frame, textvariable=graph_name, state="disabled")
+        entry.pack(padx=4, pady=6, anchor="nw", side="right")
 
         Button(options_panel_frame, text="Сохранить",
                bd=1, bg="#516a3a", fg="white",
@@ -1506,11 +1508,11 @@ class MainWindow(Tk):
             selection = table_view.selection()
             if selection:
                 item = table_view.item(selection, "values")
-                # for id, widget in enumerate([var_name, var_type, var_value]):
-                #     widget.set(str(item[id]))
-                var_name.set(str(item[0]))
-                var_type.set(str(item[1]))
-                var_value.set(str(item[2]))
+                for id, widget in enumerate([var_name, var_type, var_value]):
+                    widget.set(str(item[id]))
+                var_name_entry.config(state="enabled")
+                var_type_combobox.config(state="readonly")
+                var_value_entry.config(state="enabled")
                 
         def create_variable():
             table_view.insert("", "end", values=(generate_name(), "int", 0, self.variables_counter))
@@ -1528,18 +1530,32 @@ class MainWindow(Tk):
             var_name.set("")
             var_type.set("")
             var_value.set("")
+            var_name_entry.config(state="disabled")
+            var_type_combobox.config(state="disabled")
+            var_value_entry.config(state="disabled")
             self.variables_counter -= 1
 
             refrash_table()
+            
         def delete_all():
             if self.variables_counter == 0:
                 return
-            
+            answer = askyesno(title="Подтверждение", message="Вы точно хотите удалить все переменные?\nЭто необратимое действие и может повлечь за собой поломку всей программы.")
+
+            if not answer:
+                return
+                
             for item in table_view.get_children():
                 table_view.delete(item)
             
             for id in enumerate(self.struct.get_variables()):
                 self.struct.remove_variable(id)
+            var_name.set("")
+            var_type.set("")
+            var_value.set("")
+            var_name_entry.config(state="disabled")
+            var_type_combobox.config(state="disabled")
+            var_value_entry.config(state="disabled")
         def refrash_table():
             if self.variables_counter == 0:
                 return
@@ -1639,7 +1655,8 @@ class MainWindow(Tk):
               font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
         
         var_name = StringVar()
-        ttk.Entry(row1, textvariable=var_name).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+        var_name_entry = ttk.Entry(row1, textvariable=var_name, state="disabled")
+        var_name_entry.grid(row=0, column=1, padx=4, pady=6, sticky="ew")
 
         # Строка 2
         row2 = Frame(options_elements_frame, bg="#3a3a3a")
@@ -1649,7 +1666,8 @@ class MainWindow(Tk):
               font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
         
         var_type = StringVar()
-        ttk.Combobox(row2, values=types, state="readonly", textvariable=var_type).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+        var_type_combobox = ttk.Combobox(row2, values=types, state="disabled", textvariable=var_type)
+        var_type_combobox.grid(row=0, column=1, padx=4, pady=6, sticky="ew")
         
         # Строка 3
         row3 = Frame(options_elements_frame, bg="#3a3a3a")
@@ -1659,7 +1677,8 @@ class MainWindow(Tk):
               font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
         
         var_value = StringVar()
-        ttk.Entry(row3, textvariable=var_value).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+        var_value_entry = ttk.Entry(row3, textvariable=var_value, state="disabled")
+        var_value_entry.grid(row=0, column=1, padx=4, pady=6, sticky="ew")
 
 
         # Конечные кнопки
