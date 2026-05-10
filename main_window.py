@@ -9,6 +9,7 @@ from gfield import Gfield # поле
 from node import Node     # узел
 from tooltip import ToolTip # тултип
 from code_place import CodePlace # место кода
+from variable import PGSVariable
 from io import StringIO
 import os
 import sys
@@ -36,14 +37,13 @@ class MainWindow(Tk):
         # Инициализация панели инспектора
         self.setup_inspector_panel()
 
-
-
     def init_elements(self):
         # Создание структуры проекта
         self.struct : Struct = Struct()
         self.items_counter = 0
         self.gfields_counter = 0
         self.code_places_counter = 0
+        self.variables_counter = 0
 
         # Настройка окна приложения
         self.title("PyGraph Studio")
@@ -212,12 +212,21 @@ class MainWindow(Tk):
 
         self.struct_panel.columnconfigure(1, weight=0)
         Button(self.struct_panel, text="Графические поля",
-                                    bg="#4a4a4a", fg="white",
-                                    cursor="hand2", font=("Segoe UI", 10),
-                                    activebackground="#383838",
+                                    bg="#4a6a8a", fg="white",
+                                    cursor="hand2", font=("Segoe UI", 9, "bold"),
+                                    activebackground="#537da7",
                                     activeforeground="white",
                                     command=self.graphs_manager) \
             .grid(row=3, column=0, columnspan=2, padx=6, pady=4, sticky="nsew")
+        
+        Button(self.struct_panel, text="Переменные",
+                                    bg="#798a4a", fg="white",
+                                    cursor="hand2", font=("Segoe UI", 9, "bold"),
+                                    activebackground="#89a53b",
+                                    activeforeground="white",
+                                    command=self.variables_manager) \
+            .grid(row=4, column=0, columnspan=2, padx=6, pady=4, sticky="nsew")
+        
     def setup_inspector_panel(self):
         # Создание панели инспектора (Правая панель)
         self.inspector_panel = Frame(self, width=300, relief=SOLID, bg="#1b1b1b")
@@ -1446,10 +1455,12 @@ class MainWindow(Tk):
         toolbar_frame.pack_propagate(False)
         
         Button(toolbar_frame, text="+ Добавить графу",
-               bg="#4a6a8a", fg="white", padx=10, cursor="hand2", font=("Segoe UI", 9, "bold"), command=create_gfield_at_table).pack(side=LEFT, padx=12)
+               bg="#4a6a8a", fg="white", padx=10, cursor="hand2",
+               font=("Segoe UI", 9, "bold"), command=create_gfield_at_table).pack(side=LEFT, padx=12)
         
         Button(toolbar_frame, text="🗑 Удалить выбранное",
-               bg="#6a3a3a", fg="white", padx=10, cursor="hand2", font=("Segoe UI", 9, "bold"), command=delete_selected).pack(side=LEFT, padx=2)
+               bg="#6a3a3a", fg="white", padx=10, cursor="hand2",
+               font=("Segoe UI", 9, "bold"), command=delete_selected).pack(side=LEFT, padx=2)
 
         Label(toolbar_frame, text="Менеджер графических полей", bg="#3a3a3a", 
               fg="#cccccc", font=("Segoe UI", 10, "bold")).pack(side=RIGHT, padx=10)
@@ -1464,6 +1475,7 @@ class MainWindow(Tk):
         table_view.pack(expand=1, fill="both")
         table_view.heading("id", text="ID графы")
         table_view.heading("name", text="Название")
+        table_view.column("id", width=85)
         table_view.bind("<<TreeviewSelect>>", select)
 
         # options
@@ -1486,6 +1498,175 @@ class MainWindow(Tk):
                bd=1, bg="#516a3a", fg="white",
                font=("Segoe UI", 9, "bold"), command=save_changes).\
             pack(padx=6, pady=6, side="top", fill="x")
+        
+        start_draw()
+    
+    def variables_manager(self):
+        def select(event=None):
+            selection = table_view.selection()
+            if selection:
+                item = table_view.item(selection, "values")
+                # for id, widget in enumerate([var_name, var_type, var_value]):
+                #     widget.set(str(item[id]))
+                var_name.set(str(item[0]))
+                var_type.set(str(item[1]))
+                var_value.set(str(item[2]))
+                
+        def create_variable():
+            table_view.insert("", "end", values=(generate_name(), "int", 0, self.variables_counter))
+            self.struct.add_variable(self.variables_counter, PGSVariable(generate_name(), "int", 0))
+            self.variables_counter += 1
+
+        def delete_selected():
+            if self.variables_counter == 0:
+                return
+            
+            selected = table_view.selection()[0]
+            selected_item_id = int(table_view.item(selected, "values")[3])
+            table_view.delete(selected)
+            self.struct.remove_variable(selected_item_id)
+            var_name.set("")
+            var_type.set("")
+            var_value.set("")
+            self.variables_counter -= 1
+
+            refrash_table()
+        def delete_all():
+            if self.variables_counter == 0:
+                return
+            
+            for item in table_view.get_children():
+                table_view.delete(item)
+            
+            for id in enumerate(self.struct.get_variables()):
+                self.struct.remove_variable(id)
+        def refrash_table():
+            if self.variables_counter == 0:
+                return
+            
+            for item in table_view.get_children():
+                table_view.delete(item)
+
+            for id, item in enumerate(self.struct.get_variables().values()):
+                table_view.insert("", "end", \
+                    values=(item.get_name(), item.get_type(), item.get_value(), id))
+
+        def start_draw():
+            for id, item in enumerate(self.struct.get_variables().values()):
+                table_view.insert("", "end", \
+                    values=(item.get_name(), item.get_type(), item.get_value(), id))
+
+        def save_changes():
+            selected = table_view.selection()[0]
+            print(table_view.item(selected, "values"))
+            selected_item_id = int(table_view.item(selected, "values")[3])
+            print("item id: ", selected_item_id)
+            target_item = self.struct.get_variable(selected_item_id)
+            if var_name.get() and var_type.get() and var_value.get():
+                table_view.item(selected, values=(var_name.get(), var_type.get(), var_value.get(), selected_item_id))
+                target_item.name = var_name.get()
+                target_item.type = var_type.get()
+                target_item.value = var_value.get()
+
+        def generate_name():
+            return f"Variable_{self.variables_counter}"
+        
+        window = Toplevel(self)
+        window.geometry(f"850x505+500+300")
+        window.title(f"Менеджер переменных")
+        window.focus()
+        window.grab_set()
+        window.transient(self)
+        window.resizable(0, 0)
+        window.configure(bg="#2b2b2b")
+
+        toolbar_frame = Frame(window, height=50, bg="#3a3a3a")
+        toolbar_frame.pack(fill="x")
+        toolbar_frame.pack_propagate(False)
+        
+        Button(toolbar_frame, text="+ Добавить переменную",
+               bg="#4a6a8a", fg="white", padx=10, cursor="hand2",
+               font=("Segoe UI", 9, "bold"), command=create_variable).pack(side=LEFT, padx=(6, 2))
+        
+        Button(toolbar_frame, text="🗑 Удалить выбранное",
+               bg="#6a3a3a", fg="white", padx=10, cursor="hand2",
+               font=("Segoe UI", 9, "bold"), command=delete_selected).pack(side=LEFT, padx=2)
+        
+        Button(toolbar_frame, text="🗑 Удалить все",
+               bg="#6a3a3a", fg="white", padx=10, cursor="hand2",
+               font=("Segoe UI", 9, "bold"), command=delete_all).pack(side=LEFT, padx=2)
+
+        Label(toolbar_frame, text="Менеджер переменных", bg="#3a3a3a", 
+              fg="#cccccc", font=("Segoe UI", 10, "bold")).pack(side=RIGHT, padx=10)
+        
+        # name - Имя
+        # type - Тип
+        # value - Значение
+        columns = ("name", "type", "value", "id")
+        types = ["int", "float", "bool", "str", "list", "dict", "set", "class"]
+        table_frame = Frame(window, width=250, relief="raised")
+        table_frame.pack(expand=1, fill="both", padx=6, pady=6, side="left", anchor="nw")
+
+        table_view = ttk.Treeview(table_frame, columns=columns, show="headings")
+        table_view.pack(expand=1, fill="both")
+        table_view.heading("name", text="Имя переменной")
+        table_view.heading("type", text="Тип")
+        table_view.heading("value", text="Значение")
+        table_view.heading("id", text="ID")
+        table_view.column("name", width=125)
+        table_view.column("type", width=65)
+        table_view.column("value", width=90)
+        table_view.column("id", width=0, minwidth=0, stretch=False)
+        table_view.bind("<<TreeviewSelect>>", select)
+
+        # options
+        options_panel_frame = Frame(window, relief="raised", bd=1, bg="#3a3a3a")
+        options_panel_frame.pack(expand=1, fill="both", padx=6, pady=6, side="right")
+        Label(options_panel_frame, text="Свойства", bg="#3a3a3a", 
+              fg="#cccccc", font=("Segoe UI", 10, "bold")).pack(anchor=W, padx=10, pady=(5, 0))
+        
+        options_elements_frame = Frame(options_panel_frame, bg="#3a3a3a", bd=1)
+        options_elements_frame.pack(expand=1, fill="both", padx=6, pady=(6, 0))
+        options_elements_frame.grid_propagate(False)
+        options_elements_frame.columnconfigure(0, weight=0)
+        options_elements_frame.columnconfigure(1, weight=1)
+
+        # Строка 1
+        row1 = Frame(options_elements_frame, bg="#3a3a3a")
+        row1.grid(row=0, column=0, sticky="ew", columnspan=2)
+        row1.columnconfigure(1, weight=1)
+        Label(row1, text="Имя переменной: ",
+              font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
+        
+        var_name = StringVar()
+        ttk.Entry(row1, textvariable=var_name).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+
+        # Строка 2
+        row2 = Frame(options_elements_frame, bg="#3a3a3a")
+        row2.grid(row=1, column=0, sticky="ew", columnspan=2)
+        row2.columnconfigure(1, weight=1)
+        Label(row2, text="Тип: ",
+              font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
+        
+        var_type = StringVar()
+        ttk.Combobox(row2, values=types, state="readonly", textvariable=var_type).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+        
+        # Строка 3
+        row3 = Frame(options_elements_frame, bg="#3a3a3a")
+        row3.grid(row=2, column=0, sticky="ew", columnspan=2)
+        row3.columnconfigure(1, weight=1)
+        Label(row3, text="Значение: ",
+              font=("Segoe UI", 10), bg="#3a3a3a", fg="#cccccc").grid(row=0, column=0, padx=4, pady=6, sticky="nw")
+        
+        var_value = StringVar()
+        ttk.Entry(row3, textvariable=var_value).grid(row=0, column=1, padx=4, pady=6, sticky="ew")
+
+
+        # Конечные кнопки
+        Button(options_panel_frame, text="Сохранить",
+               bd=1, bg="#516a3a", fg="white",
+               font=("Segoe UI", 9, "bold"), command=save_changes).\
+            pack(padx=6, pady=6,  fill="x")
         
         start_draw()
         
