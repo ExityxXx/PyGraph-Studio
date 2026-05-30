@@ -1,9 +1,8 @@
 import main_window
- 
-def main():
+def main(): 
     window = main_window.MainWindow()
-    window.mainloop()                                                                              
-    
+    window.mainloop()
+
 if __name__ == "__main__":
     main()
-    
+      
