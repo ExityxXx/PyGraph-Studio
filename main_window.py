@@ -62,7 +62,7 @@ class MainWindow(Tk):
 
         # Инициализация панели инспектора
         self.setup_inspector_panel()
-
+        
     def init_elements(self):
         # Создание структуры проекта
         self.struct : Struct = Struct()
@@ -344,7 +344,7 @@ class MainWindow(Tk):
             
             self.value_entry : ttk.Entry = ttk.Entry(row2, width=25)
             self.value_entry.grid(row=0, column=1, padx=6, pady=(0, 2), sticky="ew")
-            self.value_entry.insert(0, node.text)
+            self.value_entry.insert(0, node.value)
             self.value_entry.bind("<KeyRelease>", update_node_value)
             self.value_entry.bind("<Return>", lambda event: self.focus_set())
             row3 = Frame(self.inspector_panel, bg="#1b1b1b")
@@ -663,25 +663,27 @@ class MainWindow(Tk):
         for item in items_in_area: 
             tags = canvas.gettags(item)
             if "node" in tags:
-                self.node_context_menu(event)
+                self.node_context_menu(event, item)
                 return
             elif "line" in tags:
-                self.connection_context_menu(event, item)
+                self.connection_context_menu(event, item, "flow")
+                return
+            elif "data_line" in tags:
+                self.connection_context_menu(event, item, "data")
                 return
             
         self.select_node_menu(event)
     
-    def node_context_menu(self, event=None) -> None:
+    def node_context_menu(self, event, item) -> None:
         canvas : Canvas = self.get_current_canvas()
         menu = Menu(canvas, tearoff=0)
-        menu.add_command(label="✏️ Редактировать")
-        menu.add_command(label="❌ Удалить узел")
+        menu.add_command(label="❌ Удалить узел", command=lambda: self.node_builder.delete_node(event, item))
         menu.post(event.x_root, event.y_root)
 
-    def connection_context_menu(self, event, line) -> None:
+    def connection_context_menu(self, event, line, line_type) -> None:
         canvas : Canvas = self.get_current_canvas()
         menu = Menu(canvas, tearoff=0)
-        menu.add_command(label="❌ Удалить связь", command=lambda: self.node_builder.delete_connection(event, line))
+        menu.add_command(label="❌ Удалить связь", command=lambda: self.node_builder.delete_connection(event, line, line_type))
         menu.post(event.x_root, event.y_root)
 
     def add_node_at_position(self, gfield, x, y, name, code, in_port_enable, out_port_enable, width, height, is_start_node):
@@ -735,6 +737,7 @@ class MainWindow(Tk):
                 return node
 
         return None
+    
     def find_node_at_cursor(self, event):
         gfield : Gfield = self.get_current_gfield()
         canvas : Canvas = gfield.get_canvas()
