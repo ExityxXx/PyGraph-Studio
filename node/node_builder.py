@@ -628,7 +628,8 @@ class NodeBuilder:
         if node.is_start_node:
             return
         
-        self.restore_input_fields(node, restore_data=True)
+        if hasattr(node, "widget"):
+            self.restore_input_fields(node, restore_data=True)
 
         for other in gfield.get_nodes().values():
             if other.input_node == node:
